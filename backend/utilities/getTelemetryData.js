@@ -93,8 +93,8 @@ class TelemetryData {
         .split('\n')
         .map(line =>
           line
-            .split(',')
-            .map(value => value.trim())
+            .split(';')
+            .map(value => value.trim().replace(',', '.'))
             .filter(value => !isNaN(Number(value)))
             .map(Number)
         );

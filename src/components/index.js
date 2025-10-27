@@ -7,36 +7,41 @@ import { WorkArea } from './workArea';
 
 const { Header, Content, Footer, Sider } = Layout;
 
-const MainPage = () => {
-    const [items, setItems] = useState([]);
-    const [collapsed, setCollapsed] = useState(false);
-    
+const MainPage = ({ refreshFoldersInterval = 1000 }) => {
+    const [parameterTypesItems, setParameterTypesItems] = useState([]);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [currentSelectedParameterType, setCurrentSelectedParameterType] = useState('');
+
     const [tabs, setTabs] = useState([{ key: '1', label: 'Home', content: 'Conteúdo inicial' }]);
-    const [activeKey, setActiveKey] = useState('1');
-    const [editingKey, setEditingKey] = useState(null);
+    const [activeTabKey, setActiveTabKey] = useState('1');
+    const [editingTabKey, setEditingTabKey] = useState(null);
     const [editingLabel, setEditingLabel] = useState('');
-    const [currentParameterType, setCurrentParameterType] = useState('');
 
     const { token: { colorBgContainer, borderRadiusLG } } = theme.useToken();
 
     useEffect(() => {
         getMenuItems();
-        const listener = (event, { eventType, filename }) => getMenuItems();
-        window.telemetryData.onDirChange(listener);
+        setInterval(() => {
+            getMenuItems();
+        }, refreshFoldersInterval);
 
-        return () => {
-            window.telemetryData.removeDirChangeListener?.(listener);
-        };
+        // When running both applications theres so many changes... need to check how can i make it better
+        // const listener = (event, { eventType, filename }) => getMenuItems();
+        // window.telemetryData.onDirChange(listener);
+
+        // return () => {
+        //     window.telemetryData.removeDirChangeListener?.(listener);
+        // };
     }, []);
 
     const getMenuItems = () => {
         fetchGames()
-            .then(response => setItems(response))
+            .then(response => setParameterTypesItems(response))
             .catch(err => console.error('Error during menu items request!', err));
     };
     
     const handleMenuSelection = (event) => {
-        setCurrentParameterType(event.key)
+        setCurrentSelectedParameterType(event.key)
     }
 
     const addTab = () => {
@@ -53,25 +58,25 @@ const MainPage = () => {
             ...tabs,
             { key: newKey, label: `Tab ${newIndex}`, content: `Content of Tab ${newIndex}` }
         ]);
-        setActiveKey(newKey);
+        setActiveTabKey(newKey);
     };
 
     const removeTab = (targetKey) => {
         const filteredTabs = tabs.filter(tab => tab.key !== targetKey);
-        if (activeKey === targetKey && filteredTabs.length) {
-            setActiveKey(filteredTabs[0].key);
+        if (activeTabKey === targetKey && filteredTabs.length) {
+            setActiveTabKey(filteredTabs[0].key);
         }
         setTabs(filteredTabs);
     };
 
     const startEditing = (key, label) => {
-        setEditingKey(key);
+        setEditingTabKey(key);
         setEditingLabel(label);
     };
 
     const finishEditing = (key) => {
         setTabs(tabs.map(tab => tab.key === key ? { ...tab, label: editingLabel } : tab));
-        setEditingKey(null);
+        setEditingTabKey(null);
         setEditingLabel('');
     };
 
@@ -84,8 +89,8 @@ const MainPage = () => {
         <Layout hasSider>
             <Sider
                 collapsible
-                collapsed={collapsed}
-                onCollapse={setCollapsed}
+                collapsed={isSidebarCollapsed}
+                onCollapse={setIsSidebarCollapsed}
                 collapsedWidth={80}
                 style={{
                     overflow: 'auto',
@@ -103,8 +108,8 @@ const MainPage = () => {
                     theme="dark" 
                     mode="inline" 
                     defaultSelectedKeys={['1']} 
-                    items={items}
-                    selectedKeys={currentParameterType}
+                    items={parameterTypesItems}
+                    selectedKeys={currentSelectedParameterType}
                     onClick={handleMenuSelection}
                 />
             </Sider>
@@ -119,16 +124,16 @@ const MainPage = () => {
                     }}>
                     <EditablePageTabs
                         tabs={tabs}
-                        activeKey={activeKey}
-                        setActiveKey={setActiveKey}
+                        activeKey={activeTabKey}
+                        setActiveKey={setActiveTabKey}
                         onEdit={onEdit}
-                        editingKey={editingKey}
+                        editingKey={editingTabKey}
                         editingLabel={editingLabel}
                         setEditingLabel={setEditingLabel}
                         startEditing={startEditing}
                         finishEditing={finishEditing}
                         content={<WorkArea 
-                            parameterData={currentParameterType}
+                            parameterData={currentSelectedParameterType}
                         />}
                     />
                     </div>

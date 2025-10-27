@@ -5,7 +5,7 @@ import { fetchLapData, fetchLapsAvailable } from '../services/gameData';
 
 const { Option } = Select;
 
-export const DriverSelector = ({ record, driverList, onChange, gameName, trackName, parameterType }) => {
+export const DriverSelector = ({ record, driverList, onChange, gameName, trackName, parameterType, interval = 5000 }) => {
   const [colorOpen, setColorOpen] = useState(null);
   const [lapsAvailable, setLapsAvailable] = useState({});
   const [lapData, setLapData] = useState([]);
@@ -19,16 +19,17 @@ export const DriverSelector = ({ record, driverList, onChange, gameName, trackNa
 
     onChange(record.key, updatedDrivers);
 
-    const previousKeys = record.people?.map(p => p.key) || [];
-    const newDrivers = selectedKeys
-      .filter(key => !previousKeys.includes(key))
-      .map(key => driverList.find(d => d.key === key))
-      .filter(Boolean);
+    updateLapsAvailable(gameName, trackName, parameterType);
+    setInterval(()=>{
+      updateLapsAvailable(gameName, trackName, parameterType);
+    }, interval)
+  };
 
-    newDrivers.forEach(driver => {
+  const updateLapsAvailable = (gameName, trackName, parameterType) => {
+    driverList.forEach(driver => {
       getLapsAvailable(gameName, trackName, parameterType, driver.label, driver.key);
     });
-  };
+  }
 
   const getLapsAvailable = (gameName, trackName, parameterType, driverLabel, driverKey) => {
     fetchLapsAvailable(gameName, trackName, parameterType, driverLabel)
@@ -42,6 +43,13 @@ export const DriverSelector = ({ record, driverList, onChange, gameName, trackNa
   };
 
   const handleLapSelect = async (driver, selectedLaps) => {
+    updateLapData(driver, selectedLaps);
+    setInterval(()=> {
+      updateLapData(driver, selectedLaps)
+    }, interval)
+  }
+
+  const updateLapData = async (driver, selectedLaps) => {
     const updated = await Promise.all(
       record.people.map(async (p) => {
         if (p.key === driver.key) {
@@ -50,7 +58,6 @@ export const DriverSelector = ({ record, driverList, onChange, gameName, trackNa
               const existingLap = p.laps?.find(l => l.number === num);
               if (existingLap) return existingLap;
 
-              // busca dados da volta
               let lapData = [];
               try {
                 lapData = await getLapData(gameName, trackName, parameterType, driver.name, num);
@@ -61,7 +68,7 @@ export const DriverSelector = ({ record, driverList, onChange, gameName, trackNa
               return {
                 number: num,
                 color: '#ff0000',
-                data: lapData, // adiciona os dados aqui
+                data: lapData,
               };
             })
           );

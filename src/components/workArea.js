@@ -7,13 +7,13 @@ import { leftColumnStyle, rightColumnStyle } from '../styles/workArea';
 
 import OverlappedCharts from './overlappedCharts';
 
-export const WorkArea = ({ parameterData }) => {
+export const WorkArea = ({ parameterData, interval = 5000 }) => {
 
-  const [selectedParameter, setSelectedParameter] = useState([]);
+  const [selectedParameterType, setSelectedParameterType] = useState([]);
   const [driversList, setDriversList] = useState([]);
-  const [configuration, setConfiguration] = useState([]);
+  const [dataConfigurationParameters, setDataConfigurationParameters] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [activeChart, setActiveChart] = useState(0);
+  const [currentActiveChartKey, setCurrentActiveChartKey] = useState(0);
   const [colorSchema, setColorSchema] = useState([]);
 
   const selectionState = useRef({gameName: undefined, trackName: undefined, parameterType: undefined})
@@ -26,20 +26,24 @@ export const WorkArea = ({ parameterData }) => {
       selectionState.current.gameName = dataQuery[0]; 
       selectionState.current.trackName = dataQuery[1]; 
       selectionState.current.parameterType = dataQuery[2];
-
+    
       getDriversList(selectionState.current.gameName, selectionState.current.trackName, selectionState.current.parameterType);
       getConfiguration(selectionState.current.gameName, selectionState.current.parameterType)
+      setInterval(()=> {
+        getDriversList(selectionState.current.gameName, selectionState.current.trackName, selectionState.current.parameterType);
+        getConfiguration(selectionState.current.gameName, selectionState.current.parameterType)
+      })
     }
   }, [parameterData]);
 
   useEffect(()=> {
     getChartData();
-  }, [selectedParameter]);
+  }, [selectedParameterType]);
 
   const getConfiguration = (gameName, parameterType) => {
     fetchStructureDataConfiguration(gameName)
       .then(response => {
-        setConfiguration(response[parameterType]);
+        setDataConfigurationParameters(response[parameterType]);
       })
       .catch(err => {
         console.error('Error during configuration items request!', err);
@@ -55,15 +59,15 @@ export const WorkArea = ({ parameterData }) => {
   };
 
   const handleAddParameterType = (record) => {
-    if (selectedParameter.some(item => item.key === record.key)) {
+    if (selectedParameterType.some(item => item.key === record.key)) {
       message.warning('Este item já foi adicionado.');
       return;
     }
-    setSelectedParameter(prev => [...prev, { ...record, people: [] }]);
+    setSelectedParameterType(prev => [...prev, { ...record, people: [] }]);
   };
 
   const handleRemoveParameterType = (record) => {
-    setSelectedParameter(prev => prev.filter(item => item.key !== record.key));
+    setSelectedParameterType(prev => prev.filter(item => item.key !== record.key));
   };
   
   const LeftListColumns = [
@@ -97,7 +101,7 @@ export const WorkArea = ({ parameterData }) => {
           record={record} 
           driverList={driversList} 
           onChange={(itemKey, updatedDriver) => {
-            setSelectedParameter(prev => prev.map(item =>
+            setSelectedParameterType(prev => prev.map(item =>
               item.key === itemKey ? { ...item, people: updatedDriver } : item
             ));
           }}
@@ -107,38 +111,33 @@ export const WorkArea = ({ parameterData }) => {
   ];
   
   const getChartData = () => {
-    if (!selectedParameter || !Array.isArray(selectedParameter)) return;
+    if (!selectedParameterType || !Array.isArray(selectedParameterType)) return;
 
     let newData = [];
     let newColorSchema = [];
 
-    selectedParameter.forEach(param => {
+    selectedParameterType.forEach(param => {
       let paramGroup = newData.find(item => item.parameter === param.key);
-
+      
       if (!paramGroup) {
         paramGroup = { parameter: param.key, data: [] };
         newData.push(paramGroup);
       }
+
       param.people.forEach(driver => {
         driver.laps.forEach(lap => {
           if (Array.isArray(lap.data)) {
-            const identifierList = lap.data
-              .filter(item => Array.isArray(item) && item.length > 0)
-              .map(item => ({
-                id: item[0],
-                value: item[parseInt(param.position)],
-              }));
-
-            identifierList.forEach(({ id, value }) => {
-              let idEntry = paramGroup.data.find(f => f.id === id);
+            const identifierList = [];
+            lap.data.forEach(data=> {
+              let idEntry = paramGroup.data.find(f => f.id === data[0]);
 
               if (!idEntry) {
-                idEntry = { id };
+                idEntry = { id: data[0] };
                 paramGroup.data.push(idEntry);
               }
 
-              idEntry[`${driver.name}_${param.key}_${lap.number}`] = value;
-            });
+              idEntry[`${driver.name}_${param.key}_${lap.number}`] = data[parseInt(param.position)];         
+            })
           }
           newColorSchema[`${driver.name}_${param.key}_${lap.number}`] = lap.color;
         });
@@ -155,28 +154,29 @@ export const WorkArea = ({ parameterData }) => {
   };
 
   const handleCharSelectionParameter = (rowData, rowIndex) => {
-    setActiveChart(rowIndex);
-  }
+    setCurrentActiveChartKey(rowIndex);
+  } 
 
   return (
     <Flex justify='space-between' gap={16}>
       <TelemetryDataList 
         title="Parâmetros Disponíveis"
         columns={LeftListColumns}
-        data={configuration}
+        data={dataConfigurationParameters.filter(item=> !item.key.startsWith('__') || !item.title.startsWith('__'))}
         onDoubleClickHandler={handleAddParameterType}
         style={leftColumnStyle}
       />
 
       <OverlappedCharts 
         data={chartData}
-        activeKey={activeChart}
+        activeKey={currentActiveChartKey}
         colorSchema={colorSchema}
       />
+
       <TelemetryDataList 
         title="Itens Selecionados"
         columns={RightListColumns}
-        data={selectedParameter}
+        data={selectedParameterType}
         onDoubleClickHandler={handleRemoveParameterType}
         onClickHandler={handleCharSelectionParameter}
         style={rightColumnStyle}
