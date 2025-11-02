@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import TelemetryLineChart from './telemetryLineChart';
-import { OverlappedLineChartStyle } from '../styles/telemetryChart';
+import { OverlappedLineChartStyle } from '../../styles/telemetryChart';
 
 const OverlappedCharts = ({data, colorSchema, activeKey}) => {
   const [adjustedData, setAdjustedData] = useState({});

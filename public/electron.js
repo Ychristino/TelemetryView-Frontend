@@ -17,7 +17,12 @@ function createWindow() {
 
   win.loadURL('http://localhost:3000');
 
-  SystemDirectory.watchDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchGamesDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchTracksDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchDriversDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchLapsDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchConfigurationFileDirectory(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
+  SystemDirectory.watchDriverLapDataChanges(win, path.join(os.homedir(), 'Documents', 'TelemetryData'));
 
 }
 
@@ -66,9 +71,9 @@ ipcMain.handle('get-laps-list', async (event, gameName, trackName, parameterType
   }
 });
 
-ipcMain.handle('get-lap-data', async (event, gameName, trackName, parameterType, driver, lap) => {
+ipcMain.handle('get-lap-data', async (event, gameName, trackname, parameterType, driverName, lapDate, lapSessionId, lapNum, filePosition) => {
   try {
-    return await TelemetryData.getLapData(gameName, trackName, parameterType, driver, lap);
+    return await TelemetryData.getDriverLapData(gameName, trackname, parameterType, driverName, lapDate, lapSessionId, lapNum, filePosition);
   } catch (error) {
     console.error("Erro no manipulador 'get-lap-data':", error);
     throw new Error('Erro ao buscar a dados do jogos no processo principal.');

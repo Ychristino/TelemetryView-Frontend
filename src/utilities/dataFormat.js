@@ -1,5 +1,16 @@
-export function toTitleCase(str) {
-    const spaced = str.replace(/([A-Z])/g, ' $1').trim();
-    return spaced.replace(/\b\w/g, c => c.toUpperCase());
-}
+export function convertToTitleCase(str) {
+  if (typeof str !== 'string' || str.trim() === '') {
+    return '';
+  }
 
+  return str
+    .toLowerCase()
+    .split('_')
+    .map(word => {
+      if (word.length > 0) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+      return '';
+    })
+    .join(' ');
+}

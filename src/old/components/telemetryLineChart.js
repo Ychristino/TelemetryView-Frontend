@@ -8,7 +8,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { lineChartStyle } from '../styles/telemetryChart';
+import { lineChartStyle } from '../../styles/telemetryChart';
 
 const TelemetryLineChart = ({
   data,

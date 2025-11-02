@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Layout, Menu, theme, Tabs, Input } from 'antd';
-import { fetchGames } from '../services/gameData';
+import { fetchGames } from '../../services/gameData';
 import EditablePageTabs from './editablePageTabs';
 import TelemetryDataTransferList from './telemetryDataList';
 import { WorkArea } from './workArea';

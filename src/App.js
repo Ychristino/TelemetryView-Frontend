@@ -1,7 +1,8 @@
-import MainPage from "./components";
+import { WorkArea } from "./components/workArea";
+// import MainPage from "./old/components";
 
 function App() {
-    return <MainPage />;
+    return <WorkArea />;
 }
 
 export default App;

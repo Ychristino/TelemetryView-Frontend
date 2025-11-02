@@ -1,6 +1,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const readline = require('readline');
 
 class TelemetryData {
   
@@ -8,6 +9,7 @@ class TelemetryData {
     const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData');
   
     if (!fs.existsSync(BASE_DIR)) return [];
+    
     return fs.readdirSync(BASE_DIR, { withFileTypes: true })
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name);
@@ -22,7 +24,7 @@ class TelemetryData {
       .map(entry => entry.name);
   }
 
-  static getGameData(gameName, trackName) {
+  static getDriversList(gameName, trackName) {
     const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData', gameName, trackName);
   
     if (!fs.existsSync(BASE_DIR)) return [];
@@ -31,8 +33,17 @@ class TelemetryData {
       .map(entry => entry.name);
   }
 
-  static getDriversList(gameName, trackName, parameterType) {
-    const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData', gameName, trackName, parameterType);
+  static getLapsAvailable(gameName, trackName, driverName) {
+    const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData', gameName, trackName, driverName);
+  
+    if (!fs.existsSync(BASE_DIR)) return [];
+    return fs.readdirSync(BASE_DIR, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name);
+  }
+
+  static getGameData(gameName, trackName) {
+    const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData', gameName, trackName);
   
     if (!fs.existsSync(BASE_DIR)) return [];
     return fs.readdirSync(BASE_DIR, { withFileTypes: true })
@@ -40,67 +51,62 @@ class TelemetryData {
       .map(entry => entry.name);
   }
   
-  static getLapsAvailable(gameName, trackName, parameterType, driver) {
-    const BASE_DIR = path.join(os.homedir(), 'Documents', 'TelemetryData', gameName, trackName, parameterType, driver);
+  static async getDriverLapData(gameName, trackName, parameterType, driverName, lapDate, lapSessionId, lapNum, filePosition = undefined) {
+      const folderReference = `${lapDate}_${lapSessionId}_lap${lapNum}`;
+      const BASE_DIR = path.join(
+          os.homedir(),
+          'Documents',
+          'TelemetryData',
+          gameName,
+          trackName,
+          driverName,
+          folderReference,
+          parameterType,
+          'data.csv'
+      );
 
-    if (!fs.existsSync(BASE_DIR)) return [];
+      const lapData = [];
 
-    return fs
-      .readdirSync(BASE_DIR, { withFileTypes: true })
-      .filter(entry => 
-        entry.isFile() && /^(\d{8})_lap(\d+)\.csv$/i.test(entry.name)
-      )
-      .map(entry => {
-        const match = entry.name.match(/_lap(\d+)\.csv$/i);
-        return match ? parseInt(match[1], 10) : null;
-      })
-      .filter(num => num !== null)
-      .sort((a, b) => a - b);
-  }
-  
-  static getLapData(gameName, trackName, parameterType, driver, lapNumber) {
-    const BASE_DIR = path.join(
-      os.homedir(),
-      'Documents',
-      'TelemetryData',
-      gameName,
-      trackName,
-      parameterType,
-      driver
-    );
+      const handleFileLine = (line) => {
+          return line.split(';')
+                    .map(value => value.trim().replace(',', '.'))
+                    .filter(value => !isNaN(Number(value)))
+                    .map(Number);
+      }
 
-    const fileName = fs
-      .readdirSync(BASE_DIR, { withFileTypes: true })
-      .find(
-        entry =>
-          entry.isFile() &&
-          new RegExp(`.*_lap${lapNumber}\\.csv$`, 'i').test(entry.name)
-      )?.name;
-    
-    if (!fileName) {
-      console.warn(`Lap ${lapNumber} file not found for driver ${driver}`);
-      return null;
-    }
+      let endFilePosition = 0;
 
-    const filePath = path.join(BASE_DIR, fileName);
+      if (fs.existsSync(BASE_DIR)) {
+          const currentSize = fs.statSync(BASE_DIR).size;
+          endFilePosition = currentSize;
 
-    let lastSize = 0;
-    if (fs.existsSync(filePath)) {
-      lastSize = fs.statSync(filePath).size;
-      const initialContent = fs.readFileSync(filePath, 'utf8');
-      const rows = initialContent
-        .trim()
-        .split('\n')
-        .map(line =>
-          line
-            .split(';')
-            .map(value => value.trim().replace(',', '.'))
-            .filter(value => !isNaN(Number(value)))
-            .map(Number)
-        );
+          if (filePosition !== undefined && currentSize > filePosition) {
+              await new Promise((resolve, reject) => {
+                  const stream = fs.createReadStream(BASE_DIR, {
+                      start: filePosition,
+                      end: currentSize
+                  });
 
-      return rows;
-    }    
+                  const rl = readline.createInterface({ input: stream });
+
+                  rl.on('line', (line) => {
+                      lapData.push(handleFileLine(line));
+                  });
+
+                  rl.on('close', resolve);
+                  rl.on('error', reject);
+              });
+          } else if (filePosition === undefined) {
+              const content = fs.readFileSync(BASE_DIR, 'utf-8');
+              const lines = content.split(/\r?\n/);
+              lines.forEach(line => lapData.push(handleFileLine(line)));
+          }
+      }
+
+      return {
+          lapData,
+          endFilePosition
+      };
   }
 
   static parseStructureFile(gameName) {
